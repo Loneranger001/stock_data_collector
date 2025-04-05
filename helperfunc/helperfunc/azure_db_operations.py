@@ -1,22 +1,11 @@
-import pyodbc
+
 from sqlalchemy import create_engine, Table, Column, Float, Date, Integer,BigInteger,Numeric,MetaData, String , exc
-from azure.identity import DefaultAzureCredential
+# from azure.identity import DefaultAzureCredential
 import pandas as pd
-from config.logger_config import get_logger
+from config import logger_config
+import time
 
-# fetch credentials 
-# username = os.environ.get("AZURE_SQL_USER")
-# password = os.environ.get("AZURE_SQL_PASSWORD")
-# server   = os.environ.get("AZURE_SQL_SERVER")
-# database = os.environ.get("AZURE_SQL_DB")
-
-# connection_string = f"mssql+pymssql://{username}:{password}@{server}/{database}"
-
-# engine = create_engine(connection_string,
-#         connect_args={"login_timeout":90, # connection timeout
-#         "timeout":300})                   # query timeout
-
-logger = get_logger(__name__)
+logger = logger_config.get_logger(__name__)
 
 def save_to_azure_db(df,engine,chunk_size=1000):
     try:
@@ -89,21 +78,33 @@ def save_to_azure_db(df,engine,chunk_size=1000):
         logger.info(f"Total number of records to be inserted is: {total_records}")
 
         # process in chunks 
-        with engine.begin() as connection:
-            error_flag = False
-            for i in range(0,total_records,chunk_size):
-                chunk = records[i:i + chunk_size]
-                try:
-                    result=connection.execute(stock_daily_data.insert().values(chunk))
-                    logger.info(f"Number of rows inserted : {result.rowcount}")
-                except exc.IntegrityError as e:
-                    logger.warning(f"Integrity error in chunk {1//chunk_size + 1}: {e}")
-                    error_flag=True
+        retry = True
 
-            if not error_flag:
-                logger.info(f"Successfully inserted data into Azure SQL Database")
-            else:
-                logger.error(f"One or more chunk failed.")    
+        while retry == True:
+            try:
+                with engine.begin() as connection:
+                    error_flag = False
+                    for i in range(0,total_records,chunk_size):
+                        chunk = records[i:i + chunk_size]
+                        try:
+                            result=connection.execute(stock_daily_data.insert().values(chunk))
+                            logger.info(f"Number of rows inserted : {result.rowcount}")
+                        except exc.IntegrityError as e:
+                            logger.warning(f"Integrity error in chunk {1//chunk_size + 1}: {e}")
+                            error_flag=True
+                    if not error_flag:
+                        logger.info(f"Successfully inserted data into Azure SQL Database")
+                    else:
+                        logger.error(f"One or more chunk failed.") 
+                    retry = False
+            except exc.OperationalError as e:
+                if "please retry the connection later" in str(e).lower():
+                    logger.warning(f"Connection timeout error occured. ...{e}")
+                    time.sleep(20)
+                    retry = True
+                else:
+                    logger.error(f"Operational error occured: {e}")
+                    retry=False
 
     except exc.SQLAlchemyError as e:
         logger.error(f"Database error: {str(e)}",exc_info=True)
@@ -112,8 +113,5 @@ def save_to_azure_db(df,engine,chunk_size=1000):
         logger.error(f"An unexpected error occured: {e}",exc_info=True)
         raise
 def clean_df(df):
-    # First convert any string 'nan' to actual NaN
-    # df = df.replace('nan', pd.NA)
-    # Then replace all NaN values with None for SQL compatibility
     df = df.where(pd.notnull(df), 0)
     return df

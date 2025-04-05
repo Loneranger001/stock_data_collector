@@ -1,15 +1,8 @@
 import yfinance as yf
-import pandas as pd 
-from datetime import datetime
-from urllib.request import urlretrieve
-from config.logger_config import get_logger
+from config import logger_config
 
-# logger.basicConfig(filename="scrap_stock_data.log",
-#                     filemode="a",
-#                     format="%(asctime)s - %(levelname)s - %(message)s",
-#                     level=logger.INFO,
-#                     datefmt="%Y-%m-%d %H:%M:%S")
-logger = get_logger(__name__)
+
+logger = logger_config.get_logger(__name__)
 
 
 def calculate_rsi(prices, window=14):
@@ -175,8 +168,6 @@ def download_stock_data(tickers, period = "1y",interval = "1d"):
     for ticker in tickers:
         try:
             price_data = download_stock_pricing_data(ticker,period,interval)
-            # price_data["ticker"] = ticker
-            # Fetch stock fundamental data
             fundamental_data = download_stock_fundamental_data(ticker=ticker) # returns a data frame
             for key,val in fundamental_data.items():
                 price_data[key] = val
@@ -184,12 +175,7 @@ def download_stock_data(tickers, period = "1y",interval = "1d"):
             all_data[ticker] = price_data
 
         except Exception as e:
-            # error_message = f"Error getting price data for {ticker}: {e}"
-            # print(error_message)
             logger.error(f"Error getting price data for {ticker}: {str(e)}", exc_info=True)
             raise
-        # if only one ticker, return its data frame directly
-        # if len(tickers) == 1:
-        #     all_data[tickers[0]] = 
     return all_data
 

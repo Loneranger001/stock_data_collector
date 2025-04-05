@@ -1,2 +1,11 @@
 archived/
 application.log
+dependencies/
+
+config/build/
+config/dist/
+helperfunc/build/
+helperfunc/dist/
+
+# files
+requirements.txt
