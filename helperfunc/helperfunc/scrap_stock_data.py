@@ -1,6 +1,6 @@
 import yfinance as yf
 from config import logger_config
-
+from datetime import datetime
 
 logger = logger_config.get_logger(__name__)
 
@@ -39,6 +39,10 @@ def download_stock_pricing_data(ticker,period,interval):
 
         # add ticker information
         price_data["Ticker"] = ticker
+
+        # add create date and user
+        price_data["Create_Datetime"] = datetime.today()
+        price_data["Create_User"] = "SCRAP_STOCK_DATA"
 
         # create ticker object to access additional data
         stock = yf.Ticker(ticker)

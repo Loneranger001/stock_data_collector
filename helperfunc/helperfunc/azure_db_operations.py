@@ -11,7 +11,7 @@ def save_to_azure_db(df,engine,chunk_size=1000):
     try:
         metadata = MetaData()
         stock_daily_data = Table(
-            "stock_daily_data", 
+            "stock_daily_data",
             metadata,
             Column("Ticker", String(50), primary_key=True, nullable=False),
             Column("Date", Date, primary_key=True, nullable=False),
@@ -63,25 +63,27 @@ def save_to_azure_db(df,engine,chunk_size=1000):
             Column("Net_Income", Numeric(20, 2), nullable=True),
             Column("EBITDA", Numeric(20, 2), nullable=True),
             Column("Operating_Cash_Flow", Numeric(20, 2), nullable=True),
-            Column("Free_Cash_Flow", Numeric(20, 2), nullable=True)
-
+            Column("Free_Cash_Flow", Numeric(20, 2), nullable=True),
+            Column("Create_Datetime", Date, nullable=True),
+            Column("Create_User", String(50), nullable=True)
         )
 
-        # create table if it doesn't exist
-        metadata.create_all(engine, checkfirst=True)
+        total_records = len(df)
+        logger.info(f"Total number of records to be inserted is: {total_records}")
         # handle nulls
         df = clean_df(df)
         logger.info(f"Number of null value in dataframe: {df.isna().sum().sum()}")
         # convert dataframe to dictionary
         records = df.to_dict("records")
-        total_records = len(records)
-        logger.info(f"Total number of records to be inserted is: {total_records}")
 
-        # process in chunks 
-        retry = True
+        retry_count = 0
+        max_retries = 5
 
-        while retry == True:
+        while retry_count <= max_retries:
             try:
+                # create table if it doesn't exist
+                metadata.create_all(engine, checkfirst=True)
+
                 with engine.begin() as connection:
                     error_flag = False
                     for i in range(0,total_records,chunk_size):
@@ -90,22 +92,21 @@ def save_to_azure_db(df,engine,chunk_size=1000):
                             result=connection.execute(stock_daily_data.insert().values(chunk))
                             logger.info(f"Number of rows inserted : {result.rowcount}")
                         except exc.IntegrityError as e:
-                            logger.warning(f"Integrity error in chunk {1//chunk_size + 1}: {e}")
+                            logger.warning(f"Integrity error in chunk {i//chunk_size + 1}: {e}")
                             error_flag=True
                     if not error_flag:
                         logger.info(f"Successfully inserted data into Azure SQL Database")
                     else:
-                        logger.error(f"One or more chunk failed.") 
-                    retry = False
+                        logger.error(f"One or more chunk failed.")
+                    break # Exit the loop on success
             except exc.OperationalError as e:
-                if "please retry the connection later" in str(e).lower():
-                    logger.warning(f"Connection timeout error occured. ...{e}")
+                if "please retry the connection later" in str(e).lower() and retry_count < max_retries:
+                    logger.warning(f"Connection timeout error occurred. Retrying... {e}")
                     time.sleep(20)
-                    retry = True
+                    retry_count += 1
                 else:
                     logger.error(f"Operational error occured: {e}")
-                    retry=False
-
+                    break  # Exit the loop on permanent error
     except exc.SQLAlchemyError as e:
         logger.error(f"Database error: {str(e)}",exc_info=True)
         raise
