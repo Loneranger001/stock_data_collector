@@ -6,6 +6,6 @@ config/build/
 config/dist/
 helperfunc/build/
 helperfunc/dist/
-
+data/
 # files
 requirements.txt

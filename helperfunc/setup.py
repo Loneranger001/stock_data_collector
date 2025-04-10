@@ -5,5 +5,5 @@ setup(
     description="Helper functions",
     name="helperfunc",
     packages=find_packages(include=["helperfunc"]),
-    version="1.0.1",
+    version="1.0.2",
 )

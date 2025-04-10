@@ -15,7 +15,11 @@ def main():
         password = os.environ.get("AZURE_SQL_PASSWORD")
         server   = os.environ.get("AZURE_SQL_SERVER")
         database = os.environ.get("AZURE_SQL_DB")
-
+        # connection_string = (
+        #     f"mssql+pyodbc://{username}:{password}@{server}:1433/"
+        #     f"{database}?driver=ODBC+Driver+17+for+SQL+Server&"
+        #     "Connection Timeout=60&ConnectRetryCount=5&ConnectRetryInterval=30")
+        
         connection_string = f"mssql+pymssql://{username}:{password}@{server}/{database}?login_timeout=120&timeout=300"
 
         engine = create_engine(connection_string)

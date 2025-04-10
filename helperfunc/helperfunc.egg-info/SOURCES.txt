@@ -1,6 +1,7 @@
 setup.py
 helperfunc/__init__.py
 helperfunc/azure_db_operations.py
+helperfunc/ftp_operations.py
 helperfunc/scrap_stock_data.py
 helperfunc.egg-info/PKG-INFO
 helperfunc.egg-info/SOURCES.txt

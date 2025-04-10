@@ -42,7 +42,8 @@ def download_stock_pricing_data(ticker,period,interval):
 
         # add create date and user
         price_data["Create_Datetime"] = datetime.today()
-        price_data["Create_User"] = "SCRAP_STOCK_DATA"
+        # price_data["Create_User"] = "SCRAP_STOCK_DATA"
+        price_data["Create_User"] = __name__
 
         # create ticker object to access additional data
         stock = yf.Ticker(ticker)
@@ -66,7 +67,7 @@ def download_stock_pricing_data(ticker,period,interval):
         price_data['MACD'], price_data['MACD_Signal'], price_data['MACD_Hist'] = calculate_macd(price_data['Close'])
             
         # Add volatility measures
-        price_data['Daily_Return'] = price_data['Close'].pct_change()
+        price_data['Daily_Return'] = price_data['Close'].pct_change() #pandas method to compare with consequtive rows 
         price_data['Volatility_20d'] = price_data['Daily_Return'].rolling(window=20).std() * (252 ** 0.5)  # Annualized
             
         # Add trading volume indicators

@@ -6,6 +6,7 @@ from config import logger_config
 import time
 
 logger = logger_config.get_logger(__name__)
+RETRY_ERR=40613
 
 def save_to_azure_db(df,engine,chunk_size=1000):
     try:
@@ -100,10 +101,16 @@ def save_to_azure_db(df,engine,chunk_size=1000):
                         logger.error(f"One or more chunk failed.")
                     break # Exit the loop on success
             except exc.OperationalError as e:
-                if "please retry the connection later" in str(e).lower() and retry_count < max_retries:
-                    logger.warning(f"Connection timeout error occurred. Retrying... {e}")
-                    time.sleep(20)
-                    retry_count += 1
+            # Check for Azure SQL Database error code 40613
+                if "adaptive server connection failed" in str(e).lower():
+                # if len(e.args) > 0 and isinstance(e.args[0], tuple) and e.args[0][0] == RETRY_ERR:
+                    if retry_count < max_retries:
+                        logger.warning(f"Database is not available (error 40613). Retrying... {e}")
+                        time.sleep(30)  # Wait before retrying
+                        retry_count += 1
+                    else:
+                        logger.error(f"Maximum retries reached. Database still unavailable: {e}")
+                        break
                 else:
                     logger.error(f"Operational error occured: {e}")
                     break  # Exit the loop on permanent error
@@ -116,3 +123,11 @@ def save_to_azure_db(df,engine,chunk_size=1000):
 def clean_df(df):
     df = df.where(pd.notnull(df), 0)
     return df
+
+def calculate_technical_columns():
+    """
+    Calculate 20/50/200 moving averages.
+    RSI, MACD, Daily_Return, Volatility_20d, Volume_MA20, Volume_Ratio
+
+    """
+    pass
